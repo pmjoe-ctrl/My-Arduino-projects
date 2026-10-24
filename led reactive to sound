@@ -1,0 +1,76 @@
+// Audio-Reactive RGB LED - CNTI RGB + SY-M213 Sound Sensor
+
+// Sound Sensor Pin
+const int SOUND_PIN = A0;
+
+// RGB LED Pins (Must be PWM ~ pins)
+const int RED_PIN   = 9;
+const int GREEN_PIN = 10;
+const int BLUE_PIN  = 11;
+
+// Sampling Window (20ms provides faster real-time response)
+const unsigned int SAMPLE_WINDOW = 20;
+
+// Sensitivity Thresholds (Adjust based on your ambient noise / volume)
+const int NOISE_FLOOR = 5;   // Quiet threshold (Blue)
+const int PEAK_MAX    = 15;  // Loudest beat threshold (Red)
+
+void setup() {
+  Serial.begin(115200); // Higher baud rate minimizes serial lag
+
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
+
+  // Quick LED Test sequence
+  setColor(255, 0, 0); delay(200); // Red
+  setColor(0, 255, 0); delay(200); // Green
+  setColor(0, 0, 255); delay(200); // Blue
+  setColor(0, 0, 0);   // Off
+}
+
+void loop() {
+  unsigned long startMillis = millis();
+  unsigned int signalMax = 0;
+  unsigned int signalMin = 800;
+
+  // Collect audio samples for 20 ms
+  while (millis() - startMillis < SAMPLE_WINDOW) {
+    unsigned int sample = analogRead(SOUND_PIN);
+    if (sample < 800) {
+      if (sample > signalMax) signalMax = sample;
+      if (sample < signalMin) signalMin = sample;
+    }
+  }
+
+  int peakToPeak = signalMax - signalMin;
+
+  // Map amplitude to a 0 - 255 intensity range
+  int intensity = map(peakToPeak, NOISE_FLOOR, PEAK_MAX, 0, 150);
+  intensity = constrain(intensity, 0, 150);
+
+  // Color Mapping:
+  // Low Intensity (Quiet)   -> High Blue, Low Red
+  // High Intensity (Peak)   -> High Red, Low Blue
+  int redValue  = intensity; 
+  int blueValue = 150 - intensity;
+  int greenValue = 0; // Keep green at 0 for sharp Red-Purple-Blue transition
+
+  // Drive the RGB LED
+  setColor(redValue, greenValue, blueValue);
+
+  // Monitor real-time values
+  Serial.print("Amplitude: ");
+  Serial.print(peakToPeak);
+  Serial.print(" | Red: ");
+  Serial.print(redValue);
+  Serial.print(" | Blue: ");
+  Serial.println(blueValue);
+}
+
+// Function to set RGB color via PWM
+void setColor(int red, int green, int blue) {
+  analogWrite(RED_PIN, red);
+  analogWrite(GREEN_PIN, green);
+  analogWrite(BLUE_PIN, blue);
+}
