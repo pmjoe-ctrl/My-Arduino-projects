@@ -1,0 +1,49 @@
+// SY-M213 Sound Sensor - Noise Level Monitor
+
+const int SOUND_SENSOR_PIN = A0;  // Analog pin connected to AOUT
+const unsigned int SAMPLE_WINDOW = 50; // Sample window width in milliseconds (50 ms = 20Hz)
+
+void setup() {
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // Wait for Serial port to connect
+  }
+  Serial.println("--- SY-M213 Noise Level Monitor Started ---");
+}
+
+void loop() {
+  unsigned long startMillis = millis();
+  unsigned int peakToPeak = 0;
+
+  unsigned int signalMax = 0;
+  unsigned int signalMin = 1023;
+
+  // Collect data for 50 ms to capture peak-to-peak amplitude
+  while (millis() - startMillis < SAMPLE_WINDOW) {
+    unsigned int sample = analogRead(SOUND_SENSOR_PIN);
+
+    if (sample < 1024) {  // Toss out spurious false readings
+      if (sample > signalMax) {
+        signalMax = sample;  // Save max peak
+      }
+      if (sample < signalMin) {
+        signalMin = sample;  // Save min trough
+      }
+    }
+  }
+
+  // Calculate amplitude peak-to-peak (Sound Intensity)
+  peakToPeak = signalMax - signalMin;
+
+  // Convert reading to approximate voltage (0 - 5.0V)
+  float voltage = (peakToPeak * 5.0) / 1024.0;
+
+  // Output to Serial Monitor
+  Serial.print("Raw Amplitude: ");
+  Serial.print(peakToPeak);
+  Serial.print(" | Sound Level Voltage: ");
+  Serial.print(voltage, 2);
+  Serial.println(" V");
+
+  delay(100); // Short pause between updates
+}
